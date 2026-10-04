@@ -31,14 +31,28 @@ def test_new_feature_keys_and_levels():
 
 
 def test_migration_keys_match_catalog():
-    """The level each migration leaves in access_features (later migrations win,
+    """The level schema.sql leaves in access_features (later statements win,
     e.g. 022 re-levels keys first inserted by 013/014) equals the code default."""
     import pathlib
     import re
-    rows = {}
-    for f in sorted((pathlib.Path(__file__).parents[1] / "app/db/migrations").glob("0*.sql")):
-        rows.update(re.findall(r"\('([a-z_.]+)', '(free|premium|owner)'", f.read_text()))
+    db = pathlib.Path(__file__).parents[1] / "app/db"   # Advisor: base schema + every migration
+    sql = "\n".join(f.read_text() for f in [db / "schema.sql", *sorted((db / "migrations").glob("0*.sql"))])
+    rows = dict(re.findall(r"\('([a-z_.]+)', '(free|premium|owner)'", sql))
     assert rows and all(access.FEATURE_CATALOG[k][0] == lvl for k, lvl in rows.items() if k in access.FEATURE_CATALOG)
+
+
+def test_schema_creates_every_table_the_code_uses():
+    import pathlib
+    import re
+    root = pathlib.Path(__file__).parents[1]
+    db = root / "app/db"   # Advisor: base schema + every migration
+    sql = "\n".join(f.read_text() for f in [db / "schema.sql", *sorted((db / "migrations").glob("0*.sql"))])
+    created = set(re.findall(r"CREATE TABLE IF NOT EXISTS (\w+)", sql))
+    used = set()
+    for f in (root / "app").rglob("*.py"):
+        used |= set(re.findall(r'\.table\(\s*"(\w+)"', f.read_text()))
+    used.discard("app_logs")   # optional log persistence, tolerated when missing
+    assert used and used <= created, f"tables missing from schema.sql: {sorted(used - created)}"
 
 
 # ---------------------------------------------------------------- migration missing

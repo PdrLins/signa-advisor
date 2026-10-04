@@ -7,7 +7,8 @@ set -e
 root=$(git rev-parse --show-toplevel)
 staged=$(git diff --cached --name-only)
 
-if echo "$staged" | grep -q '^back-end/'; then
+# A version file already changed in this commit was set by hand: keep it.
+if echo "$staged" | grep -q '^back-end/' && ! echo "$staged" | grep -qx 'back-end/VERSION'; then
   python3 - "$root/back-end/VERSION" <<'PY'
 import sys
 p = sys.argv[1]
@@ -22,7 +23,7 @@ PY
   git add "$root/back-end/VERSION"
 fi
 
-if echo "$staged" | grep -q '^front-end/'; then
+if echo "$staged" | grep -q '^front-end/' && ! git diff --cached -U0 -- front-end/package.json | grep -q '^[-+].*"version"'; then
   python3 - "$root/front-end" <<'PY'
 import json, re, sys
 d = sys.argv[1]

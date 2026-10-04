@@ -24,6 +24,7 @@ from app.api.v1 import alerts as alerts_api
 from app.api.v1 import allocation as allocation_api
 from app.api.v1 import dividend_summary as dividend_summary_api
 from app.api.v1 import events as events_api
+from app.api.v1 import feedback as feedback_api
 from app.api.v1 import portfolio_home as portfolio_home_api
 from app.api.v1 import referrals as referrals_api
 from app.api.v1 import register as register_api
@@ -41,18 +42,16 @@ from app.services.log_service import init_log_capture
 def _check_supabase_key_role() -> None:
     """Warn if the backend is using the anon key (never logs the key itself).
 
-    Migration 007 enables RLS with no policies; after it is applied only the
+    Every table has RLS on with no policies (app/db/schema.sql): only the
     service_role key can read/write, so an anon key would break the backend.
-    Conversely, with an anon key and no RLS, the tables are world-readable.
     """
     from app.core.security import supabase_key_role
 
     role = supabase_key_role(settings.supabase_key)
     if role == "anon":
         logger.warning(
-            "SUPABASE_KEY is an ANON key. The backend must use the service_role key. "
-            "Do NOT apply migration 007_enable_rls.sql until SUPABASE_KEY is the "
-            "service_role key, or the backend will lose database access."
+            "SUPABASE_KEY is an ANON key. The backend must use the service_role key "
+            "(Supabase -> Project Settings -> API); with the anon key it can't read any table."
         )
     elif role == "service_role":
         logger.info("Supabase key role: service_role")
@@ -172,6 +171,7 @@ from app.api.v1 import two_factor as two_factor_api  # noqa: E402
 app.include_router(two_factor_api.router, prefix=api_prefix)
 app.include_router(register_api.router, prefix=api_prefix)
 app.include_router(referrals_api.router, prefix=api_prefix)
+app.include_router(feedback_api.router, prefix=api_prefix)
 
 
 @app.post("/api/v1/telegram/webhook")
